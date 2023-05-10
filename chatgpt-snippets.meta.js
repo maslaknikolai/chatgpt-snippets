@@ -8,7 +8,7 @@
 // @grant       GM_setValue
 // @grant       GM_getValue
 // @grant       GM_deleteValue
-// @updateURL    https://raw.githubusercontent.com/maslaknikolai/chatgpt-snippets/chatgpt-snippets.meta.js
-// @downloadURL  https://raw.githubusercontent.com/maslaknikolai/chatgpt-snippets/chatgpt-snippets.user.js
+// @updateURL    https://github.com/maslaknikolai/chatgpt-snippets/raw/master/chatgpt-snippets.meta.js
+// @downloadURL  https://github.com/maslaknikolai/chatgpt-snippets/raw/master/chatgpt-snippets.user.js
 // @description Simple snippet buttons above the main chat field
 // ==/UserScript==

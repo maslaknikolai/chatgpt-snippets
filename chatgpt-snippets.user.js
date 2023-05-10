@@ -8,8 +8,8 @@
 // @grant       GM_setValue
 // @grant       GM_getValue
 // @grant       GM_deleteValue
-// @updateURL    https://raw.githubusercontent.com/maslaknikolai/chatgpt-snippets/chatgpt-snippets.meta.js
-// @downloadURL  https://raw.githubusercontent.com/maslaknikolai/chatgpt-snippets/chatgpt-snippets.user.js
+// @updateURL    https://github.com/maslaknikolai/chatgpt-snippets/raw/master/chatgpt-snippets.meta.js
+// @downloadURL  https://github.com/maslaknikolai/chatgpt-snippets/raw/master/chatgpt-snippets.user.js
 // @description Simple snippet buttons above the main chat field
 // ==/UserScript==
 
@@ -42,8 +42,10 @@ document.head.append(createLayoutFromString(`
       right: 50px;
       bottom: 12px;
       height: 24px;
-      border: 1px solid;
+      background: rgb(73 83 219);
+      border-radius: 6px;
       width: 24px;
+      padding: 3px;
     }
 
     .mf-snippets {
@@ -55,23 +57,29 @@ document.head.append(createLayoutFromString(`
 
     .mf-snippet {
       position: relative;
-      padding: 3px 5px;
+      overflow: hidden;
+      background: rgb(73 83 219);
+      border-radius: 6px;
+      padding-right: 20px;
+      display: flex;
+    }
+
+    .mf-snippet__text {
+      font-size: 11px;
       max-width: 220px;
       white-space: nowrap;
       text-overflow: ellipsis;
       overflow: hidden;
-      font-size: 10px;
-      border: 1px solid;
-      border-radius: 5px;
-      padding-right: 20px;
+      padding: 3px 5px;
     }
 
-    .mf-snippet:hover {
+    .mf-snippet__text:hover {
       cursor: pointer;
-      background: rgba(255, 255, 255, .1)
+      background: rgba(255, 255, 255, .1);
+      transition: background .2s;
     }
 
-    .mf-snippet-remove {
+    .mf-snippet__remove {
       position: absolute;
       right: 0;
       font-size: 18px;
@@ -82,12 +90,23 @@ document.head.append(createLayoutFromString(`
       display: flex;
       justify-content: center;
       align-items: center;
+      flex-grow: 0;
     }
 
-    .mf-snippet:hover {
-      background: rgba(255, 255, 255, .1)
+    .mf-snippet__remove::before {
+      content: '';
+      position: absolute;
+      left: -1px;
+      background: rgba(255,255,255,.3);
+      height: 100%;
+      width: 1px;
     }
 
+    .mf-snippet__remove:hover {
+      cursor: pointer;
+      background: rgba(255, 255, 255, .1);
+      transition: background .2s;
+    }
   </style>
 `))
 
@@ -102,9 +121,11 @@ function injectSnippets() {
 function injectSnippetBtn(snippet) {
   const snippetBtn = createLayoutFromString(`
     <div class="mf-snippet">
-      ${snippet}
+      <div class="mf-snippet__text">
+        ${snippet}
+      </div>
 
-      <div class="mf-snippet-remove">
+      <div class="mf-snippet__remove">
         &times;
       </div>
     </div>
@@ -112,27 +133,48 @@ function injectSnippetBtn(snippet) {
 
   snippetsWrapper.prepend(snippetBtn)
 
-  snippetBtn.addEventListener('click', (e) => {
+  snippetBtn.querySelector('.mf-snippet__text').onclick = (e) => {
     e.preventDefault();
     e.stopPropagation();
     field.value = snippet;
     field.focus();
     field.dispatchEvent(new Event('input', { bubbles: true })); // trigger field resize
-  })
+  }
+
+  snippetBtn.querySelector('.mf-snippet__remove').onclick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    removeSnippet(snippetBtn, snippet);
+  }
+}
+
+function removeSnippet(snippetBtn, snippet) {
+  snippetBtn.remove();
+  const savedSnippets = getSavedSnippets();
+  const removingSnippetIndex = savedSnippets.indexOf(snippet);
+  savedSnippets.splice(removingSnippetIndex, 1);
+  GM_setValue('chatgpt_snippets.snippets', savedSnippets);
 }
 
 function injectSaveSnippetBtn() {
   const saveSnippetBtn = createLayoutFromString(`
-    <button class="mf-save-snippet-btn">S</button>
+    <button class="mf-save-snippet-btn">
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M16 8.98987V20.3499C16 21.7999 14.96 22.4099 13.69 21.7099L9.76001 19.5199C9.34001 19.2899 8.65999 19.2899 8.23999 19.5199L4.31 21.7099C3.04 22.4099 2 21.7999 2 20.3499V8.98987C2 7.27987 3.39999 5.87988 5.10999 5.87988H12.89C14.6 5.87988 16 7.27987 16 8.98987Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M22 5.10999V16.47C22 17.92 20.96 18.53 19.69 17.83L16 15.77V8.98999C16 7.27999 14.6 5.88 12.89 5.88H8V5.10999C8 3.39999 9.39999 2 11.11 2H18.89C20.6 2 22 3.39999 22 5.10999Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M7 12H11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M9 14V10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
   `)
 
   field.parentElement.append(saveSnippetBtn)
 
-  saveSnippetBtn.addEventListener('click', (e) => {
+  saveSnippetBtn.onclick = (e) => {
     e.preventDefault();
     e.stopPropagation();
     saveSnippet()
-  })
+  }
 }
 
 function getSavedSnippets() {
