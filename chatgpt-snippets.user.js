@@ -1,17 +1,15 @@
 // ==UserScript==
-// @name        ChatGPT Snippets
-// @namespace   maslaknikolai
-// @match       https://chat.openai.com/*
-// @version     1.0.0
-// @run-at      document-end
-// @author      Nikolai Maslak
-// @grant       GM_setValue
-// @grant       GM_getValue
-// @grant       GM_deleteValue
+// @name         ChatGPT Snippets
+// @namespace    maslaknikolai
+// @match        https://chat.openai.com/*
+// @version      1.0.0
+// @run-at       document-end
+// @author       Nikolai Maslak
 // @updateURL    https://github.com/maslaknikolai/chatgpt-snippets/raw/master/chatgpt-snippets.meta.js
 // @downloadURL  https://github.com/maslaknikolai/chatgpt-snippets/raw/master/chatgpt-snippets.user.js
-// @description Simple snippet buttons above the main chat field
+// @description  Simple snippet buttons above the main chat field
 // ==/UserScript==
+
 
 let field = null;
 let snippetsWrapper = null;
@@ -153,7 +151,7 @@ function removeSnippet(snippetBtn, snippet) {
   const savedSnippets = getSavedSnippets();
   const removingSnippetIndex = savedSnippets.indexOf(snippet);
   savedSnippets.splice(removingSnippetIndex, 1);
-  GM_setValue('chatgpt_snippets.snippets', savedSnippets);
+  saveSnippets(savedSnippets);
 }
 
 function injectSaveSnippetBtn() {
@@ -178,7 +176,18 @@ function injectSaveSnippetBtn() {
 }
 
 function getSavedSnippets() {
-  return GM_getValue('chatgpt_snippets.snippets') || [];
+  try {
+    return JSON.parse(localStorage.getItem('chatgpt_snippets.snippets')) || []
+  } catch {
+    return [];
+  }
+}
+
+function saveSnippets(savingSnippets) {
+  return localStorage.setItem(
+    'chatgpt_snippets.snippets',
+    JSON.stringify(savingSnippets)
+  );
 }
 
 function saveSnippet() {
@@ -187,7 +196,7 @@ function saveSnippet() {
   const savedSnippets = getSavedSnippets();
   savedSnippets.push(newSnippet);
 
-  GM_setValue('chatgpt_snippets.snippets', savedSnippets);
+  saveSnippets(savedSnippets);
 
   injectSnippetBtn(newSnippet);
 }
