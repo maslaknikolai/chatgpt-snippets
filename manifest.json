@@ -4,9 +4,6 @@
     "description": "Simple snippet buttons above the main chat field",
     "author": "Nikolai Maslak",
     "manifest_version": 3,
-    "permissions": [
-      "activeTab"
-    ],
     "action": {
       "default_title": "pageatitle",
       "default_icon": {
