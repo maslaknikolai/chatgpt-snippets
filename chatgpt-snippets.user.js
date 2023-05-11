@@ -44,6 +44,13 @@ document.head.append(createLayoutFromString(`
       border-radius: 6px;
       width: 24px;
       padding: 3px;
+      transition: background .2s;
+    }
+
+    .mf-save-snippet-btn:hover {
+      cursor: pointer;
+      background: rgb(91 101 224);
+      transition: background .2s;
     }
 
     .mf-snippets {
