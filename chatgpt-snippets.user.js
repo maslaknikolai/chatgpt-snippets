@@ -2,7 +2,7 @@
 // @name         ChatGPT Snippets
 // @namespace    maslaknikolai
 // @match        https://chat.openai.com/*
-// @version      1.0.0
+// @version      1.2.0
 // @run-at       document-end
 // @author       Nikolai Maslak
 // @updateURL    https://github.com/maslaknikolai/chatgpt-snippets/raw/master/chatgpt-snippets.meta.js
@@ -10,32 +10,48 @@
 // @description  Simple snippet buttons above the main chat field
 // ==/UserScript==
 
+const SNIPPET_ACTION_TYPE = {
+  REPLACE: 'replace', // replace field value on click
+  APPEND: 'append', // append to field value on click
+}
 
-let field = null;
-let snippetsWrapper = null;
-let namePopup = null;
-let nameInput = null;
-let saveSnippetBtn = null;
+const COLORS = {
+  PRIMARY: 'rgb(73 83 219)',
+  APPEND_ACTION_FEATURE: 'rgb(219 100 73)',
+}
+
+let chatGPTPromptFieldEl = null;
+let snippetsWrapperEl = null;
+let snippetFormPopupEl = null;
+let snippetFormEl = null;
+let labelInputFieldEl = null;
+let snippetFormStepsEl = null;
+let saveSnippetBtnEl = null;
 let saveSnippetBtnDisabled = true;
-let shouldPreventNameChanging = false
+let isLabelChangedByUser = false
+let stepOfSnippetForm = 1
 
 function init() {
-  const foundField = document.getElementById('prompt-textarea')
+  const foundChatGPTPromptField = document.getElementById('prompt-textarea')
+  const isSnippetsWrapperInjected = !!document.querySelector('.mf-snippets')
 
-  if (!foundField || foundField === field) {
+  if (
+    !foundChatGPTPromptField
+    || isSnippetsWrapperInjected
+  ) {
     return
   }
 
-  field = foundField
+  chatGPTPromptFieldEl = foundChatGPTPromptField
 
-  snippetsWrapper = createLayoutFromString(`
-    <div class="mf-snippets">
-    </div>
+  snippetsWrapperEl = createLayoutFromString(`
+    <ul class="mf-snippets" aria-label="ChatGPT Snippets (Browser Extension)">
+    </ul>
   `)
 
   injectSnippets();
   injectSaveSnippetBtn();
-  injectNamePopup();
+  injectSnippetFormPopup();
 }
 
 setInterval(init, 1000)
@@ -44,9 +60,9 @@ document.head.append(createLayoutFromString(`
     .mf-save-snippet-btn {
       position: absolute;
       right: 50px;
-      bottom: 12px;
+      bottom: 16px;
       height: 24px;
-      background: rgb(73 83 219);
+      background: ${COLORS.PRIMARY};
       border-radius: 6px;
       width: 24px;
       padding: 3px;
@@ -69,13 +85,17 @@ document.head.append(createLayoutFromString(`
     .mf-snippet {
       position: relative;
       overflow: hidden;
-      background: rgb(73 83 219);
+      background: ${COLORS.PRIMARY};
       border-radius: 6px;
       padding-right: 20px;
       display: flex;
     }
 
-    .mf-snippet__text {
+    .mf-snippet__append-action {
+      background: ${COLORS.APPEND_ACTION_FEATURE};
+    }
+
+    .mf-snippet__label {
       font-size: 11px;
       max-width: 220px;
       white-space: nowrap;
@@ -84,7 +104,7 @@ document.head.append(createLayoutFromString(`
       padding: 3px 5px;
     }
 
-    .mf-snippet__text:hover {
+    .mf-snippet__label:hover {
       cursor: pointer;
       background: rgba(255, 255, 255, .1);
       transition: background .2s;
@@ -119,56 +139,129 @@ document.head.append(createLayoutFromString(`
       transition: background .2s;
     }
 
-    .mf-name-popup {
+    .mf-snippet-form-popup {
       position: absolute;
-      bottom: 2px;
-      right: 82px;
+      bottom: 6px;
+      right: 74px;
+      padding-right: 8px;
       width: 200px;
       height: 44px;
       transition: opacity .15s;
-
+      color: #000;
       opacity: 0;
       pointer-events: none;
     }
 
-    .mf-name-popup__title {
-      position: absolute;
-      left: 8px;
-      font-size: 11px;
-      color: #000;
-      pointer-events: none;
-    }
-
-    .mf-name-popup__input {
-      width: 100%;
-      padding: 10px;
-      height: 100%;
-      font-size: 14px;
-      color: #000;
-      border: 0;
+    .mf-snippet-form-popup__form {
+      background: #fff;
       border-radius: 6px;
+      height: 100%;
+      overflow: hidden;
+      position: relative;
     }
 
-    .mf-name-popup::after {
-      content: "";
+    .mf-snippet-form-popup-arrow {
       position: absolute;
       width: 0;
       height: 0;
       margin-left: 0;
       bottom: 0;
       top: calc(50% - 5px);
-      right: -5px;
+      right: 3px;
       box-sizing: border-box;
       border: 5px solid #fff;
       border-color: #fff #fff transparent transparent;
       transform-origin: 5px 5px;
       transform: rotate(45deg);
     }
+
+    .mf-snippet-form-popup-steps {
+      height: 100%;
+      transition: transform .2s;
+    }
+
+    .mf-snippet-form-popup-steps__item {
+      height: 100%;
+      overflow: hidden;
+    }
+
+    .mf-snippet-form-popup-steps__item-title {
+      position: absolute;
+      left: 8px;
+      font-size: 11px;
+      pointer-events: none;
+    }
+
+    .mf-snippet-form-label-step__input {
+      width: 100%;
+      padding: 10px;
+      background: transparent;
+      height: 100%;
+      font-size: 14px;
+      color: #000;
+      border: 0;
+    }
+
+    .mf-new-snippet-popup-action-type-step {
+      position: relative;
+    }
+
+    .mf-new-snippet-popup-action-type-step__content {
+      padding: 10px;
+      padding-top: 15px;
+      height: 100%;
+    }
+
+    .mf-radio {
+      font-size: 12px;
+      display: flex;
+      line-height: 14px;
+      padding-left: 18px;
+      position: relative;
+    }
+
+    .mf-radio input {
+      position: absolute;
+      opacity: 0;
+    }
+
+    .mf-radio input:checked + .mf-radio__circle .mf-radio__dot {
+      background: ${COLORS.PRIMARY};
+    }
+
+
+    .mf-radio__circle {
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      left: 0;
+      top: 1px;
+      border: 1px solid ${COLORS.PRIMARY};
+      border-radius: 50%;
+      padding: 2px;
+      transition: border-color .2s;
+    }
+
+    .mf-radio__dot {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      background: transparent;
+      transition: background .2s;
+    }
+
+    .mf-radio.mf-action-type-append-radio input:checked + .mf-radio__circle {
+      border-color: ${COLORS.APPEND_ACTION_FEATURE};
+    }
+
+    .mf-radio.mf-action-type-append-radio input:checked + .mf-radio__circle .mf-radio__dot {
+      background: ${COLORS.APPEND_ACTION_FEATURE};
+    }
   </style>
 `))
 
 function injectSnippets() {
-  field.parentElement.before(snippetsWrapper);
+  chatGPTPromptFieldEl.parentElement.before(snippetsWrapperEl);
 
   const savedSnippets = getSavedSnippets();
 
@@ -176,29 +269,49 @@ function injectSnippets() {
 }
 
 function injectSnippetBtn(snippet) {
-  const snippetBtn = createLayoutFromString(`
-    <div
-      class="mf-snippet"
-      data-id="${snippet.id}"
-    >
-      <div class="mf-snippet__text">
-        ${snippet.name}
-      </div>
+  const actionTypeARIAText = snippet.actionType === SNIPPET_ACTION_TYPE.APPEND
+    ? 'Appending'
+    : 'Replacing';
 
-      <div class="mf-snippet__remove">
+  const snippetBtn = createLayoutFromString(`
+    <li
+      class="
+        mf-snippet
+        ${snippet.actionType === SNIPPET_ACTION_TYPE.APPEND ? 'mf-snippet__append-action' : ''}
+      "
+    >
+      <button
+        class="mf-snippet__label"
+        aria-label="${actionTypeARIAText} snippet: ${snippet.label}"
+        role="button"
+      >
+        ${snippet.label}
+      </button>
+
+      <button
+        class="mf-snippet__remove"
+        aria-label="Remove snippet: ${snippet.label}"
+        role="button"
+      >
         &times;
-      </div>
-    </div>
+      </button>
+    </li>
   `)
 
-  snippetsWrapper.prepend(snippetBtn)
+  snippetsWrapperEl.prepend(snippetBtn)
 
-  snippetBtn.querySelector('.mf-snippet__text').onclick = (e) => {
+  snippetBtn.querySelector('.mf-snippet__label').onclick = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    field.value = snippet.content;
-    field.focus();
-    field.dispatchEvent(new Event('input', { bubbles: true })); // trigger field resize
+
+    if (snippet.actionType === SNIPPET_ACTION_TYPE.APPEND) {
+      chatGPTPromptFieldEl.value = `${chatGPTPromptFieldEl.value}${snippet.content}`;
+    } else {
+      chatGPTPromptFieldEl.value = snippet.content;
+    }
+
+    chatGPTPromptFieldEl.focus();
+    chatGPTPromptFieldEl.dispatchEvent(new Event('input', { bubbles: true })); // trigger field resize
   }
 
   snippetBtn.querySelector('.mf-snippet__remove').onclick = (e) => {
@@ -214,7 +327,7 @@ function injectSnippetBtn(snippet) {
 }
 
 function injectSaveSnippetBtn() {
-  saveSnippetBtn = createLayoutFromString(`
+  saveSnippetBtnEl = createLayoutFromString(`
     <button class="mf-save-snippet-btn">
       <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
         <path d="M16 8.98987V20.3499C16 21.7999 14.96 22.4099 13.69 21.7099L9.76001 19.5199C9.34001 19.2899 8.65999 19.2899 8.23999 19.5199L4.31 21.7099C3.04 22.4099 2 21.7999 2 20.3499V8.98987C2 7.27987 3.39999 5.87988 5.10999 5.87988H12.89C14.6 5.87988 16 7.27987 16 8.98987Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -225,9 +338,9 @@ function injectSaveSnippetBtn() {
     </button>
   `)
 
-  field.parentElement.append(saveSnippetBtn)
+  chatGPTPromptFieldEl.parentElement.append(saveSnippetBtnEl)
 
-  saveSnippetBtn.onclick = (e) => {
+  saveSnippetBtnEl.onclick = async (e) => {
     e.preventDefault();
     e.stopPropagation();
 
@@ -235,80 +348,166 @@ function injectSaveSnippetBtn() {
       return
     }
 
-    addSnippet()
+    if (stepOfSnippetForm === 1) {
+      setSnippetFormStep(2);
+
+      setTimeout(() => { // wait for animation otherwise browser will scroll to focused element
+        snippetFormEl.actionType[0].focus()
+      }, 200)
+      return
+    }
+
+    if (stepOfSnippetForm === 2) {
+      addSnippet()
+
+      setSnippetFormStep(1)
+      labelInputFieldEl.value = '';
+      actualizeSaveSnippetBtnDisabledState()
+      isLabelChangedByUser = false;
+    }
   }
 }
 
-function injectNamePopup() {
-  namePopup = createLayoutFromString(`
-    <div class="mf-name-popup">
-      <div class="mf-name-popup__title">
-        You can set shorter name
-      </div>
+function injectSnippetFormPopup() {
+  snippetFormPopupEl = createLayoutFromString(`
+    <div class="mf-snippet-form-popup">
+      <form class="mf-snippet-form-popup__form">
+        <div class="mf-snippet-form-popup-steps">
+          <div class="mf-snippet-form-popup-steps__item mf-snippet-form-label-step">
+            <div class="mf-snippet-form-popup-steps__item-title">
+              1/2. Snippet label:
+            </div>
 
-      <input
-        type="text"
-        class="mf-name-popup__input"
-      />
+            <input
+              type="text"
+              name="label"
+              class="mf-snippet-form-label-step__input"
+            />
+          </div>
+
+          <!-- Step 2 -->
+
+          <div class="mf-snippet-form-popup-steps__item mf-new-snippet-popup-action-type-step">
+
+            <div class="
+              mf-snippet-form-popup-steps__item-title
+            ">
+              2/2. After click on snippet
+            </div>
+
+            <div class="mf-new-snippet-popup-action-type-step__content">
+              <label class="mf-radio">
+                <input
+                  type="radio"
+                  value="replace"
+                  name="actionType"
+                  checked
+                />
+
+                <div class="mf-radio__circle">
+                  <div class="mf-radio__dot"></div>
+                </div>
+
+                <div class="mf-radio__text">
+                  Replace field value
+                </div>
+              </label>
+
+              <label class="mf-radio mf-action-type-append-radio">
+                <input
+                  type="radio"
+                  value="append"
+                  name="actionType"
+                />
+
+                <div class="mf-radio__circle">
+                  <div class="mf-radio__dot"></div>
+                </div>
+
+                <div class="mf-radio__text">
+                  Append snippet to field value
+                </div>
+              </label>
+            </div>
+
+          </div>
+        </div>
+      </form>
+
+      <div class="mf-snippet-form-popup-arrow"></div>
     </div>
   `)
 
 
-  field.parentElement.append(namePopup)
+  chatGPTPromptFieldEl.parentElement.append(snippetFormPopupEl)
 
-  let isFieldFocused = false
+  const allFormFields = Array.from(document.querySelectorAll('radio, input'))
+  const checkIfFocusInForm = () => allFormFields.includes(document.activeElement)
 
   const [runHideDebounce, cancelHideDebounce] = debounce(() => {
-    if (isFieldFocused) {
+    if (checkIfFocusInForm()) {
       return;
     }
 
-    namePopup.style.opacity = 0;
-    namePopup.style.pointerEvents = 'none';
+    setSnippetFormStep(1);
+    snippetFormPopupEl.style.opacity = 0;
+    snippetFormPopupEl.style.pointerEvents = 'none';
   }, 300)
 
   const show = () => {
     cancelHideDebounce()
-    namePopup.style.opacity = 1;
-    namePopup.style.pointerEvents = 'auto';
+    snippetFormPopupEl.style.opacity = 1;
+    snippetFormPopupEl.style.pointerEvents = 'auto';
   }
 
-  saveSnippetBtn.onmouseover = show
-  saveSnippetBtn.onmouseleave = runHideDebounce
-  namePopup.onmouseover = show
-  namePopup.onmouseleave = runHideDebounce
 
-  nameInput = namePopup.querySelector('.mf-name-popup__input')
 
-  nameInput.onfocus = () => {
-    isFieldFocused = true;
-    show()
+  const showOrHideDependsOnFormFocus = () => {
+    if (checkIfFocusInForm()) {
+      show()
+    } else {
+      runHideDebounce()
+    }
+  }
+
+  saveSnippetBtnEl.onmouseover = show
+  saveSnippetBtnEl.onmouseleave = runHideDebounce
+  snippetFormPopupEl.onmouseover = show
+  snippetFormPopupEl.onmouseleave = runHideDebounce
+
+  labelInputFieldEl = snippetFormPopupEl.querySelector('.mf-snippet-form-label-step__input')
+  snippetFormStepsEl = snippetFormPopupEl.querySelector('.mf-snippet-form-popup-steps')
+  snippetFormEl = snippetFormPopupEl.querySelector('.mf-snippet-form-popup__form')
+
+  allFormFields.forEach((field) => {
+    field.onfocus = showOrHideDependsOnFormFocus;
+    field.onblur = showOrHideDependsOnFormFocus;
+  })
+
+  actualizeSaveSnippetBtnDisabledState()
+
+  labelInputFieldEl.oninput = (e) => {
+    isLabelChangedByUser = !!e.target.value.length
+    actualizeSaveSnippetBtnDisabledState()
   };
 
-  nameInput.onblur = () => {
-    isFieldFocused = false;
-    runHideDebounce()
-  };
-
-  updateSaveSnippetBtnDisabledState()
-
-  nameInput.oninput = (e) => {
-    shouldPreventNameChanging = !!e.target.value.length
-    updateSaveSnippetBtnDisabledState()
-  };
-
-  field.addEventListener('input', () => {
-    if (shouldPreventNameChanging) {
+  chatGPTPromptFieldEl.addEventListener('input', () => {
+    if (isLabelChangedByUser) {
       return
     }
 
-    nameInput.value = field.value;
-    updateSaveSnippetBtnDisabledState()
+    labelInputFieldEl.value = chatGPTPromptFieldEl.value;
+    actualizeSaveSnippetBtnDisabledState()
   })
 }
 
-const updateSaveSnippetBtnDisabledState = () => {
-  saveSnippetBtnDisabled = !nameInput.value.length
+const actualizeSaveSnippetBtnDisabledState = () => {
+  saveSnippetBtnDisabled = !labelInputFieldEl.value.length
+}
+
+const setSnippetFormStep = (newStep) => {
+  stepOfSnippetForm = newStep;
+  snippetFormStepsEl.style.transform = `translateY(-${(newStep - 1) * 44}px)`
 }
 
 function getSavedSnippets() {
@@ -317,11 +516,17 @@ function getSavedSnippets() {
     const savedSnippets = JSON.parse(localStorage.getItem('chatgpt_snippets.snippets')) || []
 
     const migrations = [
-      () => savedSnippets.map((content) => ({
+      snippetsV0 => snippetsV0.map((content) => ({
         id: Date.now(),
         name: content,
         content
-      }))
+      })),
+      snippetsV1 => snippetsV1.map((snippetItemV1) => ({
+        id: snippetItemV1.id,
+        label: snippetItemV1.name,
+        content: snippetItemV1.content,
+        actionType: SNIPPET_ACTION_TYPE.REPLACE,
+      })),
     ]
     const requiredMigrations = migrations.slice(savedSnippetsVersionIndex)
 
@@ -346,15 +551,17 @@ function saveSnippets(savingSnippets) {
 }
 
 function addSnippet() {
+  const snippetFormData = Object.fromEntries(Array.from(new FormData(snippetFormEl).entries()));
+  const actionType = snippetFormData['actionType'] === 'append'
+    ? SNIPPET_ACTION_TYPE.APPEND
+    : SNIPPET_ACTION_TYPE.REPLACE
+
   const newSnippet = {
     id: Date.now(),
-    name: nameInput.value,
-    content: field.value
+    label: snippetFormData['label'],
+    content: chatGPTPromptFieldEl.value,
+    actionType,
   }
-
-  nameInput.value = '';
-  updateSaveSnippetBtnDisabledState()
-  shouldPreventNameChanging = false;
 
   const savedSnippets = getSavedSnippets();
   savedSnippets.push(newSnippet);
