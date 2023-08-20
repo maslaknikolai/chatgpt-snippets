@@ -1,6 +1,6 @@
 {
     "name": "ChatGPT Snippets",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "description": "Simple snippet buttons above the main chat field",
     "author": "Nikolai Maslak",
     "manifest_version": 3,

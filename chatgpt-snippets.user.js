@@ -50,7 +50,6 @@ function init() {
   `)
 
   injectSnippets();
-  injectSaveSnippetBtn();
   injectSnippetFormPopup();
 }
 
@@ -80,6 +79,8 @@ document.head.append(createLayoutFromString(`
       gap: 8px;
       flex-wrap: wrap;
       margin-bottom: 8px;
+      max-height: 90px;
+      overflow: auto;
     }
 
     .mf-snippet {
@@ -207,8 +208,7 @@ document.head.append(createLayoutFromString(`
     }
 
     .mf-new-snippet-popup-action-type-step__content {
-      padding: 10px;
-      padding-top: 15px;
+      padding: 14px 10px 0 10px;
       height: 100%;
     }
 
@@ -223,12 +223,16 @@ document.head.append(createLayoutFromString(`
     .mf-radio input {
       position: absolute;
       opacity: 0;
+      top: -2px;
     }
 
     .mf-radio input:checked + .mf-radio__circle .mf-radio__dot {
       background: ${COLORS.PRIMARY};
     }
 
+    .mf-radio input:focus + .mf-radio__circle {
+      box-shadow: 0 0 0 2px rgba(0,123,255,0.5);;
+    }
 
     .mf-radio__circle {
       position: absolute;
@@ -326,9 +330,20 @@ function injectSnippetBtn(snippet) {
   }
 }
 
-function injectSaveSnippetBtn() {
+function tryToGoStep2() {
+  if (!labelInputFieldEl.value.length) {
+    return
+  }
+
+  setSnippetFormStep(2);
+}
+
+function injectSnippetFormPopup() {
   saveSnippetBtnEl = createLayoutFromString(`
-    <button class="mf-save-snippet-btn">
+    <button
+      class="mf-save-snippet-btn"
+      aria-label="Save snippet"
+    >
       <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
         <path d="M16 8.98987V20.3499C16 21.7999 14.96 22.4099 13.69 21.7099L9.76001 19.5199C9.34001 19.2899 8.65999 19.2899 8.23999 19.5199L4.31 21.7099C3.04 22.4099 2 21.7999 2 20.3499V8.98987C2 7.27987 3.39999 5.87988 5.10999 5.87988H12.89C14.6 5.87988 16 7.27987 16 8.98987Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
         <path d="M22 5.10999V16.47C22 17.92 20.96 18.53 19.69 17.83L16 15.77V8.98999C16 7.27999 14.6 5.88 12.89 5.88H8V5.10999C8 3.39999 9.39999 2 11.11 2H18.89C20.6 2 22 3.39999 22 5.10999Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -338,22 +353,12 @@ function injectSaveSnippetBtn() {
     </button>
   `)
 
-  chatGPTPromptFieldEl.parentElement.append(saveSnippetBtnEl)
-
   saveSnippetBtnEl.onclick = async (e) => {
     e.preventDefault();
     e.stopPropagation();
 
-    if (saveSnippetBtnDisabled) {
-      return
-    }
-
     if (stepOfSnippetForm === 1) {
-      setSnippetFormStep(2);
-
-      setTimeout(() => { // wait for animation otherwise browser will scroll to focused element
-        snippetFormEl.actionType[0].focus()
-      }, 200)
+      tryToGoStep2()
       return
     }
 
@@ -364,23 +369,27 @@ function injectSaveSnippetBtn() {
       labelInputFieldEl.value = '';
       actualizeSaveSnippetBtnDisabledState()
       isLabelChangedByUser = false;
+
+      chatGPTPromptFieldEl.value = '';
     }
   }
-}
 
-function injectSnippetFormPopup() {
   snippetFormPopupEl = createLayoutFromString(`
     <div class="mf-snippet-form-popup">
       <form class="mf-snippet-form-popup__form">
         <div class="mf-snippet-form-popup-steps">
           <div class="mf-snippet-form-popup-steps__item mf-snippet-form-label-step">
-            <div class="mf-snippet-form-popup-steps__item-title">
+            <label
+              class="mf-snippet-form-popup-steps__item-title"
+              for="labelOfLabelStep"
+            >
               1/2. Snippet label:
-            </div>
+            </label>
 
             <input
               type="text"
               name="label"
+              id="labelOfLabelStep"
               class="mf-snippet-form-label-step__input"
             />
           </div>
@@ -389,13 +398,18 @@ function injectSnippetFormPopup() {
 
           <div class="mf-snippet-form-popup-steps__item mf-new-snippet-popup-action-type-step">
 
-            <div class="
-              mf-snippet-form-popup-steps__item-title
-            ">
+            <label
+              class="mf-snippet-form-popup-steps__item-title"
+              id="labelOfActionTypeStep"
+            >
               2/2. After click on snippet
-            </div>
+            </label>
 
-            <div class="mf-new-snippet-popup-action-type-step__content">
+            <div
+              class="mf-new-snippet-popup-action-type-step__content"
+              role="radiogroup"
+              aria-labeledby="labelOfActionTypeStep"
+            >
               <label class="mf-radio">
                 <input
                   type="radio"
@@ -425,7 +439,7 @@ function injectSnippetFormPopup() {
                 </div>
 
                 <div class="mf-radio__text">
-                  Append snippet to field value
+                  Add to field value
                 </div>
               </label>
             </div>
@@ -438,11 +452,14 @@ function injectSnippetFormPopup() {
     </div>
   `)
 
-
   chatGPTPromptFieldEl.parentElement.append(snippetFormPopupEl)
+  chatGPTPromptFieldEl.parentElement.append(saveSnippetBtnEl)
 
   const allFormFields = Array.from(document.querySelectorAll('radio, input'))
-  const checkIfFocusInForm = () => allFormFields.includes(document.activeElement)
+  const checkIfFocusInForm = () => (
+    allFormFields.includes(document.activeElement)
+    || document.activeElement === saveSnippetBtnEl
+  )
 
   const [runHideDebounce, cancelHideDebounce] = debounce(() => {
     if (checkIfFocusInForm()) {
@@ -460,8 +477,6 @@ function injectSnippetFormPopup() {
     snippetFormPopupEl.style.pointerEvents = 'auto';
   }
 
-
-
   const showOrHideDependsOnFormFocus = () => {
     if (checkIfFocusInForm()) {
       show()
@@ -472,6 +487,7 @@ function injectSnippetFormPopup() {
 
   saveSnippetBtnEl.onmouseover = show
   saveSnippetBtnEl.onmouseleave = runHideDebounce
+  saveSnippetBtnEl.onblur = runHideDebounce
   snippetFormPopupEl.onmouseover = show
   snippetFormPopupEl.onmouseleave = runHideDebounce
 
@@ -490,6 +506,14 @@ function injectSnippetFormPopup() {
     isLabelChangedByUser = !!e.target.value.length
     actualizeSaveSnippetBtnDisabledState()
   };
+
+  labelInputFieldEl.onkeydown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      e.stopPropagation();
+      tryToGoStep2()
+    }
+  }
 
   chatGPTPromptFieldEl.addEventListener('input', () => {
     if (isLabelChangedByUser) {
@@ -565,9 +589,7 @@ function addSnippet() {
 
   const savedSnippets = getSavedSnippets();
   savedSnippets.push(newSnippet);
-
   saveSnippets(savedSnippets);
-
   injectSnippetBtn(newSnippet);
 }
 
