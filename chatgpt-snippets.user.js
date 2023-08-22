@@ -265,7 +265,7 @@ document.head.append(createLayoutFromString(`
 `))
 
 function injectSnippets() {
-  chatGPTPromptFieldEl.parentElement.before(snippetsWrapperEl);
+  chatGPTPromptFieldEl.parentElement.parentElement.before(snippetsWrapperEl);
 
   const savedSnippets = getSavedSnippets();
 
