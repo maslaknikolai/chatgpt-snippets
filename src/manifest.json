@@ -13,5 +13,6 @@
       "matches": ["https://chatgpt.com/*"],
       "js": ["src/content.ts"]
     }
-  ]
+  ],
+  "permissions": ["storage"]
 }

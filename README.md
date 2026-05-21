@@ -15,7 +15,7 @@ ChatGPT Snippets is a Chrome extension designed to improve your productivity and
 
 ## Usage
 
-1. Start a session with ChatGPT at `https://chat.openai.com/*`.
+1. Start a session with ChatGPT at `https://chatgpt.com/*`.
 2. Type your text into the ChatGPT input field.
 3. Click the save button to store the text as a snippet.
 4. Click on a saved snippet to insert it into the input field.
