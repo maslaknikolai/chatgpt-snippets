@@ -43,4 +43,4 @@ function init() {
   }));
 }
 
-setInterval(init, 1000);
+setInterval(init, 300);

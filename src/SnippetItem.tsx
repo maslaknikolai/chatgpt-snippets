@@ -1,23 +1,15 @@
 import { useAtom } from 'jotai';
-import { fieldAtom, snippetsAtom } from './atoms';
+import { snippetsAtom } from './atoms';
 import { Snippet } from './types';
+import { useApplySnippet } from './useApplySnippet';
 
 interface Props {
   snippet: Snippet;
 }
 
 export function SnippetItem({ snippet }: Props) {
-  const [field] = useAtom(fieldAtom);
   const [, setSnippets] = useAtom(snippetsAtom);
-
-  const handleApply = () => {
-    if (!field) {
-        return;
-    }
-    field.innerText = snippet.content;
-    field.focus();
-    field.dispatchEvent(new Event('input', { bubbles: true }));
-  }
+  const applySnippet = useApplySnippet();
 
   const handleRemove = () => {
     setSnippets(prev => prev.filter(it => it.id !== snippet.id));
@@ -54,7 +46,7 @@ export function SnippetItem({ snippet }: Props) {
       <button
         className="text-[11px] max-w-[220px] truncate py-[3px] px-[5px] cursor-pointer hover:bg-white/10 transition-colors duration-200"
         aria-label={`Snippet: ${snippet.label}`}
-        onClick={handleApply}
+        onClick={() => applySnippet(snippet)}
       >
         {snippet.label}
       </button>

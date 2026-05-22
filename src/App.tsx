@@ -4,6 +4,7 @@ import { SnippetItem } from './SnippetItem';
 import { AddSnippetButton } from './AddSnippetButton';
 import { useEffect } from 'react';
 import { useSnippetsStorage } from './useSnippetsStorage';
+import { useSnippetHotkeys } from './useSnippetHotkeys';
 
 
 export function App({ field }: {
@@ -12,6 +13,7 @@ export function App({ field }: {
   const [snippets] = useAtom(snippetsAtom);
   const setField = useSetAtom(fieldAtom);
   useSnippetsStorage();
+  useSnippetHotkeys();
 
   useEffect(() => {
     setField(field);
